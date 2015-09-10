@@ -22,16 +22,6 @@ import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka._
 import org.apache.spark.SparkConf
 
-/**
- * Consumes messages from one or more topics in Kafka and does wordcount.
- * Usage: DirectKafkaWordCount <brokers> <topics>
- *   <brokers> is a list of one or more Kafka brokers
- *   <topics> is a list of one or more kafka topics to consume from
- *
- * Example:
- *    $ bin/run-example streaming.DirectKafkaWordCount broker1-host:port,broker2-host:port \
- *    topic1,topic2
- */
 object ImprovedDirectKafkaWordCount {
   def createContext(checkpointDirectory: String) : StreamingContext = {
     // Create context with 2 second batch interval
@@ -42,11 +32,12 @@ object ImprovedDirectKafkaWordCount {
   }
 
   def main(args: Array[String]) {
-    if (args.length < 3) {
+    if (args.length < 4) {
       System.err.println(s"""
         |Usage: DirectKafkaWordCount <brokers> <topics> <checkpointDirectory>
         |  <brokers> is a list of one or more Kafka brokers
-        |  <topics> is a list of one or more kafka topics to consume from
+        |  <inputTopics> is a list of one or more kafka topics to consume from
+        |  <outputTopic> is a  kafka topics to produce into
 		|  <checkpointDirectory> is a path to save the checkpoint information
         |
         """.stripMargin)
@@ -55,17 +46,17 @@ object ImprovedDirectKafkaWordCount {
 
     StreamingExamples.setStreamingLogLevels()
 
-    val Array(brokers, topics, checkpointDirectory) = args
+    val Array(brokers, inputTopics, outputTopic, checkpointDirectory) = args
 	val context = StreamingContext.getOrCreate(checkpointDirectory,
 	  () => {
 	    createContext(checkpointDirectory)
       })
 
     // Create direct kafka stream with brokers and topics
-    val topicsSet = topics.split(",").toSet
+    val inputTopicsSet = inputTopics.split(",").toSet
     val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
     val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](
-      context, kafkaParams, topicsSet)
+      context, kafkaParams, inputTopicsSet)
 
     // Get the lines, split them into words, count the words and print
     val lines = messages.map(_._2)
@@ -79,7 +70,7 @@ object ImprovedDirectKafkaWordCount {
 		rdd.foreach(record => {
 			val now = java.time.LocalDateTime.now().toString()
 			val message = "hello at " + now + record
-			kafkaSink.value.send(new KeyedMessage[String, String]("testTopic", "one", message))
+			kafkaSink.value.send(new KeyedMessage[String, String](outputTopic, "one", message))
 		})
 	})
 
