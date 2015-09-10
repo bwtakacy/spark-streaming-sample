@@ -16,6 +16,7 @@
  */
 
 import kafka.serializer.StringDecoder
+import kafka.producer.KeyedMessage
 
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka._
@@ -70,7 +71,20 @@ object DirectKafkaWordCount {
     val lines = messages.map(_._2)
     val words = lines.flatMap(_.split(" "))
     val wordCounts = words.map(x => (x, 1L)).reduceByKey(_ + _)
-    wordCounts.print()
+    //wordCounts.print()
+
+	// Output to Kafka
+	wordCounts.foreachRDD(rdd => {
+		rdd.foreachPartition(partitionOfRecords => {
+			val producer = new SimpleKafkaProducer()
+			partitionOfRecords.foreach { record =>
+				val now = java.time.LocalDateTime.now().toString()
+				val message = "hello at " + now + record
+				producer.send(new KeyedMessage[String, String]("testTopic", "one", message))
+			}
+			producer.close()
+		})
+	})
 
     // Start the computation
     context.start()
