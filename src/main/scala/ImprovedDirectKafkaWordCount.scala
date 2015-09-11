@@ -74,6 +74,13 @@ object ImprovedDirectKafkaWordCount {
 		})
 	})
 
+	// Setup gracefull stop
+	sys.ShutdownHookThread {
+		System.err.println("Gracefully stopping Spark Streaming Application ")
+		context.stop(true, true)
+		System.err.println("Application stopped ")
+	}
+
     // Start the computation
     context.start()
     context.awaitTermination()
