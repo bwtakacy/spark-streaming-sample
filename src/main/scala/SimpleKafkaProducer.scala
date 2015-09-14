@@ -7,7 +7,7 @@ class SimpleKafkaProducer {
     println("connecting to %s".format(topicName))
 
     val props = new Properties()
-    props.put("metadata.broker.list", "localhost:9092")
+    props.put("metadata.broker.list", "kafka01:9092,kafka02:9092,kafka03:9092")
     props.put("serializer.class", "kafka.serializer.StringEncoder")
     props.put("request.required.acks", "1")
 
