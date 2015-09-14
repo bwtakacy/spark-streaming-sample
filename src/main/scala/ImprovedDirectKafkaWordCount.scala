@@ -38,7 +38,7 @@ object ImprovedDirectKafkaWordCount {
         |  <brokers> is a list of one or more Kafka brokers
         |  <inputTopics> is a list of one or more kafka topics to consume from
         |  <outputTopic> is a  kafka topics to produce into
-		|  <checkpointDirectory> is a path to save the checkpoint information
+	|  <checkpointDirectory> is a path to save the checkpoint information
         |
         """.stripMargin)
       System.exit(1)
@@ -68,8 +68,7 @@ object ImprovedDirectKafkaWordCount {
 	val kafkaSink = context.sparkContext.broadcast(KafkaSink())
 	wordCounts.foreachRDD(rdd => {
 		rdd.foreach(record => {
-			val now = java.time.LocalDateTime.now().toString()
-			val message = "hello at " + now + record
+			val message = "The message read from Kakfa: " + record
 			kafkaSink.value.send(new KeyedMessage[String, String](outputTopic, "one", message))
 		})
 	})
