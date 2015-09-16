@@ -67,7 +67,8 @@ object ImprovedDirectKafkaWordCount {
     var countsMessage = ""
     hostCounts.foreachRDD( rdd => {
         if (!rdd.isEmpty()) {
-            countsMessage = rdd.map(x => "Host: " + x._1 + ", Counts: " + x._2)
+            countsMessage = rdd
+                      .map(x => "(" + x._1 + ", Counts: " + x._2 + ") ")
                       .reduce((x,y) => x + y)
         }
     })
@@ -86,7 +87,7 @@ object ImprovedDirectKafkaWordCount {
    val kafkaSink = context.sparkContext.broadcast(KafkaSink())
    messages.foreachRDD(rdd => {
        rdd.foreach(record => {
-           val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: <" + countsMessage + ">"
+           val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: " + countsMessage
            kafkaSink.value.send(new KeyedMessage[String, String](
                      outputTopic, "SP", message))
        })  
