@@ -25,11 +25,54 @@ import org.apache.spark.streaming.kafka._
 import org.apache.spark.SparkConf
 
 object ImprovedDirectKafkaWordCount {
-  def createContext(checkpointDirectory: String) : StreamingContext = {
-    // Create context with 2 second batch interval
-    val sparkConf = new SparkConf().setAppName("DirectKafkaWordCount")
-    val ssc = new StreamingContext(sparkConf, Seconds(2))
-    ssc.checkpoint(checkpointDirectory)
+  def createContext(brokers: String, inputTopics: String,
+           outputTopic: String, checkpointDirectory: String)
+         : StreamingContext = {
+      // Create context with 2 second batch interval
+      val sparkConf = new SparkConf().setAppName("DirectKafkaWordCount")
+      val ssc = new StreamingContext(sparkConf, Seconds(2))
+      ssc.checkpoint(checkpointDirectory)
+
+      // Create direct kafka stream with brokers and topics
+      val inputTopicsSet = inputTopics.split(",").toSet
+      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
+      val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](
+        ssc, kafkaParams, inputTopicsSet)
+
+      // count message for each host 
+      val lines = messages.map(_._1)
+      val hosts = lines.map(_.split(" ")(0))
+      val hostCounts = hosts.map(x => (x, 1L)).reduceByKey(_ + _)
+      var countsMessage = ""
+      hostCounts.foreachRDD( rdd => {
+          if (!rdd.isEmpty()) {
+              countsMessage = rdd
+                        .map(x => "(" + x._1 + ", Counts: " + x._2 + ") ")
+                        .reduce((x,y) => x + y)
+          }
+      })
+
+      // calculate average of message value
+      val messagesWindow =  messages.window(Seconds(30), Seconds(10))
+      var avg = 0L
+      messagesWindow.foreachRDD( rdd => {
+          if (!rdd.isEmpty()) {
+              val counts = rdd.map(_._2).count().toDouble
+              val sum = rdd.map(_._2).map(_.toInt).reduce((x, y) => x + y)
+              avg = round(sum / counts)
+          }
+      })
+
+     // Output to Kafka
+     val kafkaSink = ssc.sparkContext.broadcast(KafkaSink())
+     messages.foreachRDD(rdd => {
+         rdd.foreach(record => {
+             val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: " + countsMessage
+             kafkaSink.value.send(new KeyedMessage[String, String](
+                       outputTopic, "SP", message))
+         })  
+     })
+
     ssc
   }
 
@@ -46,52 +89,11 @@ object ImprovedDirectKafkaWordCount {
       System.exit(1)
     }
 
-    StreamingExamples.setStreamingLogLevels()
-
     val Array(brokers, inputTopics, outputTopic, checkpointDirectory) = args
     val context = StreamingContext.getOrCreate(checkpointDirectory,
       () => {
-          createContext(checkpointDirectory)
+          createContext(brokers, inputTopics, outputTopic, checkpointDirectory)
       })
-
-    // Create direct kafka stream with brokers and topics
-    val inputTopicsSet = inputTopics.split(",").toSet
-    val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
-    val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](
-      context, kafkaParams, inputTopicsSet)
-
-    // Get the lines, split them into words, count the words and print
-    val lines = messages.map(_._1)
-    val hosts = lines.map(_.split(" ")(0))
-    val hostCounts = hosts.map(x => (x, 1L)).reduceByKey(_ + _)
-    var countsMessage = ""
-    hostCounts.foreachRDD( rdd => {
-        if (!rdd.isEmpty()) {
-            countsMessage = rdd
-                      .map(x => "(" + x._1 + ", Counts: " + x._2 + ") ")
-                      .reduce((x,y) => x + y)
-        }
-    })
-
-    val messagesWindow =  messages.window(Seconds(30), Seconds(10))
-    var avg = 0L
-    messagesWindow.foreachRDD( rdd => {
-        if (!rdd.isEmpty()) {
-            val counts = rdd.map(_._2).count().toDouble
-            val sum = rdd.map(_._2).map(_.toInt).reduce((x, y) => x + y)
-            avg = round(sum / counts)
-        }
-    })
-
-   // Output to Kafka
-   val kafkaSink = context.sparkContext.broadcast(KafkaSink())
-   messages.foreachRDD(rdd => {
-       rdd.foreach(record => {
-           val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: " + countsMessage
-           kafkaSink.value.send(new KeyedMessage[String, String](
-                     outputTopic, "SP", message))
-       })  
-   })
 
     // Setup gracefull stop
     sys.ShutdownHookThread {
