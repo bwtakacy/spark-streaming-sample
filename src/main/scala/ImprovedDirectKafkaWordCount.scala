@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import scala.math._
+
 import kafka.serializer.StringDecoder
 import kafka.producer.KeyedMessage
 
@@ -27,8 +29,8 @@ object ImprovedDirectKafkaWordCount {
     // Create context with 2 second batch interval
     val sparkConf = new SparkConf().setAppName("DirectKafkaWordCount")
     val ssc = new StreamingContext(sparkConf, Seconds(2))
-	ssc.checkpoint(checkpointDirectory)
-	ssc
+    ssc.checkpoint(checkpointDirectory)
+    ssc
   }
 
   def main(args: Array[String]) {
@@ -38,7 +40,7 @@ object ImprovedDirectKafkaWordCount {
         |  <brokers> is a list of one or more Kafka brokers
         |  <inputTopics> is a list of one or more kafka topics to consume from
         |  <outputTopic> is a  kafka topics to produce into
-	|  <checkpointDirectory> is a path to save the checkpoint information
+        |  <checkpointDirectory> is a path to save the checkpoint information
         |
         """.stripMargin)
       System.exit(1)
@@ -47,9 +49,9 @@ object ImprovedDirectKafkaWordCount {
     StreamingExamples.setStreamingLogLevels()
 
     val Array(brokers, inputTopics, outputTopic, checkpointDirectory) = args
-	val context = StreamingContext.getOrCreate(checkpointDirectory,
-	  () => {
-	    createContext(checkpointDirectory)
+    val context = StreamingContext.getOrCreate(checkpointDirectory,
+      () => {
+          createContext(checkpointDirectory)
       })
 
     // Create direct kafka stream with brokers and topics
@@ -59,26 +61,36 @@ object ImprovedDirectKafkaWordCount {
       context, kafkaParams, inputTopicsSet)
 
     // Get the lines, split them into words, count the words and print
-    val lines = messages.map(_._2)
+    //val lines = messages.map(_._2)
     //val words = lines.flatMap(_.split(" "))
-    val wordCounts = lines.map(x => (x, 1L)).reduceByKey(_ + _)
+    //val wordCounts = lines.map(x => (x, 1L)).reduceByKey(_ + _)
     //wordCounts.print()
 
-	// Output to Kafka
-	val kafkaSink = context.sparkContext.broadcast(KafkaSink())
-	wordCounts.foreachRDD(rdd => {
-		rdd.foreach(record => {
-			val message = "The message read from Kakfa: " + record
-			kafkaSink.value.send(new KeyedMessage[String, String](outputTopic, "one", message))
-		})
-	})
+    val keys = messages.map(_._1)
+    val messagesWindow =  messages.window(Seconds(30), Seconds(10))
+    var avg = 0L
+    messagesWindow.foreachRDD( rdd => {
+        val counts = rdd.map(_._2).count().toDouble
+        val sum = rdd.map(_._2).map(_.toInt).reduce((x, y) => x + y)
+        avg = round(sum / counts)
+    })
 
-	// Setup gracefull stop
-	sys.ShutdownHookThread {
-		System.err.println("Gracefully stopping Spark Streaming Application ")
-		context.stop(true, true)
-		System.err.println("Application stopped ")
-	}
+   // Output to Kafka
+   val kafkaSink = context.sparkContext.broadcast(KafkaSink())
+   messages.foreachRDD(rdd => {
+       rdd.foreach(record => {
+           val message = "The message read from Kakfa: " + record + ", Counts: " + avg
+           kafkaSink.value.send(new KeyedMessage[String, String](
+                     outputTopic, "SP", message))
+       })  
+   })
+
+    // Setup gracefull stop
+    sys.ShutdownHookThread {
+        System.err.println("Gracefully stopping Spark Streaming Application ")
+        context.stop(true, true)
+        System.err.println("Application stopped ")
+    }
 
     // Start the computation
     context.start()
