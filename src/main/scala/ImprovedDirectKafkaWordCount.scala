@@ -61,25 +61,32 @@ object ImprovedDirectKafkaWordCount {
       context, kafkaParams, inputTopicsSet)
 
     // Get the lines, split them into words, count the words and print
-    //val lines = messages.map(_._2)
-    //val words = lines.flatMap(_.split(" "))
-    //val wordCounts = lines.map(x => (x, 1L)).reduceByKey(_ + _)
-    //wordCounts.print()
+    val lines = messages.map(_._1)
+    val hosts = lines.map(_.split(" ")(0))
+    val hostCounts = hosts.map(x => (x, 1L)).reduceByKey(_ + _)
+    var countsMessage = ""
+    hostCounts.foreachRDD( rdd => {
+        if (!rdd.isEmpty()) {
+            countsMessage = rdd.map(x => "Host: " + x._1 + ", Counts: " + x._2)
+                      .reduce((x,y) => x + y)
+        }
+    })
 
-    val keys = messages.map(_._1)
     val messagesWindow =  messages.window(Seconds(30), Seconds(10))
     var avg = 0L
     messagesWindow.foreachRDD( rdd => {
-        val counts = rdd.map(_._2).count().toDouble
-        val sum = rdd.map(_._2).map(_.toInt).reduce((x, y) => x + y)
-        avg = round(sum / counts)
+        if (!rdd.isEmpty()) {
+            val counts = rdd.map(_._2).count().toDouble
+            val sum = rdd.map(_._2).map(_.toInt).reduce((x, y) => x + y)
+            avg = round(sum / counts)
+        }
     })
 
    // Output to Kafka
    val kafkaSink = context.sparkContext.broadcast(KafkaSink())
    messages.foreachRDD(rdd => {
        rdd.foreach(record => {
-           val message = "The message read from Kakfa: " + record + ", Counts: " + avg
+           val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: <" + countsMessage + ">"
            kafkaSink.value.send(new KeyedMessage[String, String](
                      outputTopic, "SP", message))
        })  
