@@ -1,15 +1,14 @@
 import java.util.Properties
 import kafka.producer.{KeyedMessage, ProducerConfig, Producer}
 
-class SimpleKafkaProducer {
-
-    val topicName = "testTopic"
-    println("connecting to %s".format(topicName))
+class SimpleKafkaProducer (brokers: String) {
 
     val props = new Properties()
-    props.put("metadata.broker.list", "kafka01:9092,kafka02:9092,kafka03:9092")
+    props.put("metadata.broker.list", brokers)
     props.put("serializer.class", "kafka.serializer.StringEncoder")
     props.put("request.required.acks", "1")
+    props.put("message.send.max.retries", "100000")
+    props.put("retry.backoff.ms", "1000")
 
     val config = new ProducerConfig(props)
     val p = new Producer[String, String](config)

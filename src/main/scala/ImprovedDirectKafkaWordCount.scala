@@ -64,13 +64,16 @@ object ImprovedDirectKafkaWordCount {
       })
 
      // Output to Kafka
-     val kafkaSink = ssc.sparkContext.broadcast(KafkaSink())
      messages.foreachRDD(rdd => {
-         rdd.foreach(record => {
-             val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: " + countsMessage
-             kafkaSink.value.send(new KeyedMessage[String, String](
+         rdd.foreachPartition(partitionOfRecords => {
+             val producer = new SimpleKafkaProducer(brokers)
+             partitionOfRecords.foreach { record =>
+                 val message = "Message: " + record + ", Average Value: " + avg + ", Host Counts: " + countsMessage
+             producer.send(new KeyedMessage[String, String](
                        outputTopic, "SP", message))
-         })  
+             }
+             producer.close()
+         })
      })
 
     ssc
