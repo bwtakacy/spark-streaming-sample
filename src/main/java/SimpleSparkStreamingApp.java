@@ -3,13 +3,15 @@ import org.apache.spark.*;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.streaming.*;
 import org.apache.spark.streaming.api.java.*;
+import org.apache.spark.streaming.dstream.*;
 import scala.Tuple2;
+import org.apache.hadoop.mapred.TextOutputFormat;
 
 public class SimpleSparkStreamingApp {
   public static void main(String[] args) {
     // Create a local StreamingContext with two working thread and batch interval of 1 second
     SparkConf conf = new SparkConf().setAppName("NetworkWordCount");
-    JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(1));
+    JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(10));
     
     // Create a DStream that will connect to hostname:port, like localhost:9999
     JavaReceiverInputDStream<String> lines = jssc.socketTextStream("localhost", 9999);
@@ -37,8 +39,7 @@ public class SimpleSparkStreamingApp {
       });
     
     // Print the first ten elements of each RDD generated in this DStream to the console
-    wordCounts.print();
-    
+    wordCounts.saveAsHadoopFiles("hdfs://localhost:9000/user/spark/output/completed", "tsv", String.class, Integer.class, (Class) TextOutputFormat.class);
     jssc.start();              // Start the computation
     jssc.awaitTermination();   // Wait for the computation to terminate
   }
