@@ -39,7 +39,7 @@ public class SimpleSparkStreamingApp {
       });
     
     // Print the first ten elements of each RDD generated in this DStream to the console
-    wordCounts.saveAsHadoopFiles("hdfs://localhost:9000/user/spark/output/completed", "tsv", String.class, Integer.class, (Class) TextOutputFormat.class);
+    wordCounts.saveAsHadoopFiles("hdfs://localhost:8020/user/spark/output/completed", "tsv", String.class, Integer.class, (Class) TextOutputFormat.class);
     jssc.start();              // Start the computation
     jssc.awaitTermination();   // Wait for the computation to terminate
   }

@@ -9,17 +9,17 @@
     <dependency> <!-- Spark dependency -->
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.10</artifactId>
-      <version>1.5.2</version>
+      <version>1.4.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-streaming_2.10</artifactId>
-      <version>1.5.2</version>
+      <version>1.4.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-streaming-kafka_2.10</artifactId>
-      <version>1.5.2</version>
+      <version>1.4.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
