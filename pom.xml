@@ -30,6 +30,12 @@
 <build>
 <plugins>
 <plugin>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <compilerArgument>${compilerArgument}</compilerArgument>
+    </configuration>
+</plugin>
+<plugin>
      <groupId>org.apache.maven.plugins</groupId>
      <artifactId>maven-assembly-plugin</artifactId>
      <version>2.5.3</version>

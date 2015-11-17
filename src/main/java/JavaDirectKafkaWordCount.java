@@ -31,6 +31,8 @@ import org.apache.spark.streaming.api.java.*;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.apache.spark.streaming.Durations;
 
+import org.apache.hadoop.mapred.TextOutputFormat;
+
 /**
  * Consumes messages from one or more topics in Kafka and does wordcount.
  * Usage: DirectKafkaWordCount <brokers> <topics>
@@ -100,7 +102,8 @@ public final class JavaDirectKafkaWordCount {
           return i1 + i2;
         }
       });
-    wordCounts.print();
+    //wordCounts.print();
+	wordCounts.saveAsHadoopFiles("hdfs://localhost:8020/user/spark/output/completed", "tsv", String.class, Integer.class, (Class) TextOutputFormat.class);
 
     // Start the computation
     jssc.start();
