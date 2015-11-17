@@ -65,31 +65,9 @@ public final class JavaDirectKafkaWordCount {
     );
 
     // Get the lines, split them into words, count the words and print
-    JavaDStream<String> lines = messages.map(new Function<Tuple2<String, String>, String>() {
-      @Override
-      public String call(Tuple2<String, String> tuple2) {
-        return tuple2._2();
-      }
-    });
-    JavaDStream<String> words = lines.flatMap(new FlatMapFunction<String, String>() {
-      @Override
-      public Iterable<String> call(String x) {
-        return Lists.newArrayList(SPACE.split(x));
-      }
-    });
-    JavaPairDStream<String, Integer> wordCounts = words.mapToPair(
-      new PairFunction<String, String, Integer>() {
-        @Override
-        public Tuple2<String, Integer> call(String s) {
-          return new Tuple2<String, Integer>(s, 1);
-        }
-      }).reduceByKey(
-        new Function2<Integer, Integer, Integer>() {
-        @Override
-        public Integer call(Integer i1, Integer i2) {
-          return i1 + i2;
-        }
-      });
+    JavaDStream<String> lines = messages.map(tuple2 -> tuple2._2());
+    JavaDStream<String> words = lines.flatMap(line -> Lists.newArrayList((SPACE.split(line))));
+    JavaPairDStream<String, Integer> wordCounts = words.mapToPair(word -> new Tuple2<String, Integer>(word, 1)).reduceByKey((x, y) -> x + y);
 
     // output to HDFS
 	wordCounts.saveAsNewAPIHadoopFiles(outputPath, "", String.class, Integer.class, (Class) TextOutputFormat.class);
