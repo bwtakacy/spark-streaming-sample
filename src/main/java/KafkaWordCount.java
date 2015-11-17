@@ -8,6 +8,9 @@ import scala.Tuple2;
 import com.google.common.collect.Lists;
 import kafka.serializer.StringDecoder;
 
+import org.apache.log4j.Logger;
+import org.apache.log4j.Level;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.streaming.api.java.*;
@@ -36,6 +39,8 @@ public final class KafkaWordCount {
           "  <batchInterval> is a integer value of duration of streaming job\n\n");
       System.exit(1);
     }
+
+    Logger.getRootLogger().setLevel(Level.WARN);
 
     String brokers = args[0];
     String topics = args[1];
