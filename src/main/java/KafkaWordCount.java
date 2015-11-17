@@ -24,7 +24,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
  *
  */
 
-public final class JavaDirectKafkaWordCount {
+public final class KafkaWordCount {
   private static final Pattern SPACE = Pattern.compile(" ");
 
   public static void main(String[] args) {
