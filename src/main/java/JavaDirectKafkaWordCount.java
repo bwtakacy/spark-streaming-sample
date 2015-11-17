@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Arrays;
@@ -31,7 +14,7 @@ import org.apache.spark.streaming.api.java.*;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.apache.spark.streaming.Durations;
 
-import org.apache.hadoop.mapred.TextOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 /**
  * Consumes messages from one or more topics in Kafka and does wordcount.
@@ -39,27 +22,32 @@ import org.apache.hadoop.mapred.TextOutputFormat;
  *   <brokers> is a list of one or more Kafka brokers
  *   <topics> is a list of one or more kafka topics to consume from
  *
- * Example:
- *    $ bin/run-example streaming.KafkaWordCount broker1-host:port,broker2-host:port topic1,topic2
  */
 
 public final class JavaDirectKafkaWordCount {
   private static final Pattern SPACE = Pattern.compile(" ");
 
   public static void main(String[] args) {
-    if (args.length < 2) {
-      System.err.println("Usage: DirectKafkaWordCount <brokers> <topics>\n" +
+    if (args.length < 3) {
+      System.err.println("Usage: DirectKafkaWordCount <brokers> <topics> <outputPath> [<batchInterval>]\n" +
           "  <brokers> is a list of one or more Kafka brokers\n" +
-          "  <topics> is a list of one or more kafka topics to consume from\n\n");
+          "  <topics> is a list of one or more kafka topics to consume from\n" +
+          "  <outputPath> is a HDFS path to output files\n" +
+          "  <batchInterval> is a integer value of duration of streaming job\n\n");
       System.exit(1);
     }
 
     String brokers = args[0];
     String topics = args[1];
+    String outputPath = args[2];
+    int batchInterval = 10;
+    if (args.length == 4) {
+        batchInterval = Integer.parseInt(args[4]);
+    }
 
     // Create context with 2 second batch interval
     SparkConf sparkConf = new SparkConf().setAppName("JavaDirectKafkaWordCount");
-    JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(2));
+    JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(batchInterval));
 
     HashSet<String> topicsSet = new HashSet<String>(Arrays.asList(topics.split(",")));
     HashMap<String, String> kafkaParams = new HashMap<String, String>();
@@ -102,8 +90,9 @@ public final class JavaDirectKafkaWordCount {
           return i1 + i2;
         }
       });
-    //wordCounts.print();
-	wordCounts.saveAsHadoopFiles("hdfs://localhost:8020/user/spark/output/completed", "tsv", String.class, Integer.class, (Class) TextOutputFormat.class);
+
+    // output to HDFS
+	wordCounts.saveAsNewAPIHadoopFiles(outputPath, "", String.class, Integer.class, (Class) TextOutputFormat.class);
 
     // Start the computation
     jssc.start();

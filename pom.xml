@@ -5,6 +5,9 @@
   <name>Simple Project</name>
   <packaging>jar</packaging>
   <version>1.0</version>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
   <dependencies>
     <dependency> <!-- Spark dependency -->
       <groupId>org.apache.spark</groupId>
@@ -31,6 +34,7 @@
 <plugins>
 <plugin>
     <artifactId>maven-compiler-plugin</artifactId>
+    <version>3.3</version>
     <configuration>
         <compilerArgument>${compilerArgument}</compilerArgument>
     </configuration>
