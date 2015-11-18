@@ -75,7 +75,7 @@ public final class KafkaWordCount {
     JavaPairDStream<String, Integer> wordCounts = words.mapToPair(word -> new Tuple2<String, Integer>(word, 1)).reduceByKey((x, y) -> x + y);
 
     // output to HDFS
-	wordCounts.saveAsNewAPIHadoopFiles(outputPath, "", String.class, Integer.class, (Class) TextOutputFormat.class);
+    wordCounts.saveAsNewAPIHadoopFiles(outputPath, "", String.class, Integer.class, (Class) TextOutputFormat.class);
 
     // Start the computation
     jssc.start();
